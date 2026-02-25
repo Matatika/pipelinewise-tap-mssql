@@ -226,6 +226,7 @@ def sync_historic_table(mssql_conn, config, catalog_entry, state, columns, strea
             select_sql = """
                             SELECT {}
                                 ,'I' _sdc_operation_type
+                                , null _sdc_deleted_at
                                 , cast('1900-01-01' as datetime) _sdc_lsn_commit_timestamp
                                 , null _sdc_lsn_deleted_at
                                 , '00000000000000000000' _sdc_lsn_value
