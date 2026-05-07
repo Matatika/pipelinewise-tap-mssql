@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
+from os import environ
+
 import backoff
 import pymssql
 import singer
-from os import environ
 
 LOGGER = singer.get_logger()
 
@@ -41,7 +42,7 @@ class MSSQLConnection(pymssql.Connection):
             args["conn_properties"] = config.get("conn_properties")
         # Optional ability to dump TDS logs
         if config.get("enable_tds_logging"):
-            environ['TDSDUMP'] = 'stderr'
+            environ["TDSDUMP"] = "stderr"
         conn = pymssql._mssql.connect(**args)
         super().__init__(conn, False, True)
 
@@ -61,6 +62,7 @@ def make_connection_wrapper(config):
             connect_with_backoff(self)
 
     return ConnectionWrapper
+
 
 def ResultIterator(cursor, arraysize=1):
     while True:

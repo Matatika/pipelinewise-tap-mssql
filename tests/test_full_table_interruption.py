@@ -1,8 +1,5 @@
-import copy
-import os
 import unittest
 
-import pymssql
 import singer
 import singer.metadata
 
@@ -31,9 +28,7 @@ def insert_record(conn, table_name, record):
     insert_sql = """
         INSERT INTO {}.{}
                ( `foo`, `bar` )
-        VALUES ( {} )""".format(
-        test_utils.DB_NAME, table_name, value_sql
-    )
+        VALUES ( {} )""".format(test_utils.DB_NAME, table_name, value_sql)
 
     with connect_with_backoff(conn) as open_conn:
         with open_conn.cursor() as cur:
@@ -170,7 +165,6 @@ class BinlogInterruption(unittest.TestCase):
         failed_syncing_table_2 = False
         singer.write_message = singer_write_message_ok
 
-        table_2_RECORD_COUNT = 0
         SINGER_MESSAGES.clear()
 
         tap_mssql.do_sync(self.conn, test_utils.get_db_config(), self.catalog, state)
@@ -215,7 +209,6 @@ class BinlogInterruption(unittest.TestCase):
         for record in new_table_2_records:
             insert_record(self.conn, "table_2", record)
 
-        TABLE_2_RECORD_COUNT = 0
         SINGER_MESSAGES.clear()
 
         tap_mssql.do_sync(self.conn, test_utils.get_db_config(), self.catalog, state)
@@ -306,21 +299,9 @@ class FullTableInterruption(unittest.TestCase):
             ],
         )
 
-        expected_state_1 = {
-            "currently_syncing": "tap_mssql_test-table_2",
-            "bookmarks": {
-                "tap_mssql_test-table_2": {
-                    "last_pk_fetched": {"id": 1},
-                    "max_pk_values": {"id": 3},
-                },
-                "tap_mssql_test-table_1": {"initial_full_table_complete": True},
-            },
-        }
-
         failed_syncing_table_2 = False
         singer.write_message = singer_write_message_ok
 
-        TABLE_2_RECORD_COUNT = 0
         SINGER_MESSAGES.clear()
 
         tap_mssql.do_sync(self.conn, {}, self.catalog, state)

@@ -24,7 +24,7 @@ def verify_change_data_capture_table(connection, schema_name, table_name):
                    join sys.schemas s on (s.schema_id = t.schema_id)
                    and  t.name = '{}'
                    and  s.name = '{}'""".format(
-            table_name.replace('"',''), schema_name.replace('"','')
+            table_name.replace('"', ""), schema_name.replace('"', "")
         )
     )
     row = cur.fetchone()
@@ -81,9 +81,7 @@ def get_lsn_available_range(connection, capture_instance_name):
     query = """SELECT sys.fn_cdc_get_min_lsn ( '{}' ) lsn_from
                     , sys.fn_cdc_get_max_lsn () lsn_to
                ;
-            """.format(
-        capture_instance_name
-    )
+            """.format(capture_instance_name)
     cur.execute(query)
     row = cur.fetchone()
 
@@ -151,7 +149,8 @@ def add_synthetic_keys_to_schema(catalog_entry):
 def generate_bookmark_keys(catalog_entry):
 
     # TO_DO:
-    # 1. check the use of the top three values above and the parameter value, seem to not be required.
+    # 1. check the use of the top three values above and the parameter value,
+    #    seem to not be required.
     # 2. check the base_bookmark_keys required
     base_bookmark_keys = {
         "last_lsn_fetched",
@@ -203,12 +202,13 @@ def sync_historic_table(mssql_conn, config, catalog_entry, state, columns, strea
 
     with connect_with_backoff(mssql_conn) as open_conn:
         with open_conn.cursor() as cur:
-
             escaped_columns = map(lambda c: common.prepare_columns_sql(catalog_entry, c), columns)
             escaped_table_name = common.escape(catalog_entry.table)
             escaped_schema_name = common.escape(common.get_database_name(catalog_entry))
 
-            if not verify_change_data_capture_table(mssql_conn, escaped_schema_name, escaped_table_name):
+            if not verify_change_data_capture_table(
+                mssql_conn, escaped_schema_name, escaped_table_name
+            ):
                 raise Exception(
                     (
                         "Error {}.{}: does not have change data capture enabled. Call EXEC"
@@ -218,9 +218,10 @@ def sync_historic_table(mssql_conn, config, catalog_entry, state, columns, strea
 
             verify_read_isolation_databases(mssql_conn)
 
-            # Store the current database lsn number, will use this to store at the end of the initial load.
-            # Note: Recommend no transactions loaded when the initial loads are performed.
-            # Have captured the to_lsn before the initial load sync in-case records are added during the sync.
+            # Store the current database lsn number, will use this to store at the end of the
+            # initial load. Note: Recommend no transactions loaded when the initial loads are
+            # performed. Have captured the to_lsn before the initial load sync in-case records
+            # are added during the sync.
             lsn_to = str(get_to_lsn(mssql_conn)[0].hex())
 
             select_sql = """
@@ -297,7 +298,6 @@ def sync_table(mssql_conn, config, catalog_entry, state, columns, stream_version
 
     with connect_with_backoff(mssql_conn) as open_conn:
         with open_conn.cursor() as cur:
-
             state_last_lsn = singer.get_bookmark(state, catalog_entry.tap_stream_id, "lsn")
 
             escaped_columns = map(lambda c: common.prepare_columns_sql(catalog_entry, c), columns)
@@ -306,10 +306,11 @@ def sync_table(mssql_conn, config, catalog_entry, state, columns, stream_version
             cdc_table = schema_name + "_" + table_name
             escape_table_name = common.escape(catalog_entry.table)
             escaped_schema_name = common.escape(schema_name)
-            escaped_cdc_table = common.escape(cdc_table)
             escaped_cdc_function = common.escape("fn_cdc_get_all_changes_" + cdc_table)
 
-            if not verify_change_data_capture_table(mssql_conn, escaped_schema_name, escape_table_name):
+            if not verify_change_data_capture_table(
+                mssql_conn, escaped_schema_name, escape_table_name
+            ):
                 raise Exception(
                     (
                         "Error {}.{}: does not have change data capture enabled. "
@@ -337,21 +338,21 @@ def sync_table(mssql_conn, config, catalog_entry, state, columns, stream_version
                         LOGGER.info(
                             (
                                 "The last lsn processed as per the state file is equal to the max"
-                                " lsn available - no changes expected - state lsn will not be incremented"
+                                " lsn available - no changes expected -"
+                                " state lsn will not be incremented"
                             ),
                         )
                         from_lsn_expression = "{}".format(py_bin_to_mssql(state_last_lsn))
                     else:
-                        from_lsn_expression = (
-                            (
-                                "sys.fn_cdc_increment_lsn({})"
-                            ).format(py_bin_to_mssql(state_last_lsn))
+                        from_lsn_expression = ("sys.fn_cdc_increment_lsn({})").format(
+                            py_bin_to_mssql(state_last_lsn)
                         )
                 else:
                     raise Exception(
                         (
                             "Error {}.{}: CDC changes have expired, the minimum lsn is {}, the last"
-                            " processed lsn is {}. Recommend a full load as there may be missing data."
+                            " processed lsn is {}. Recommend a full load as there may be"
+                            " missing data."
                         ).format(escaped_schema_name, escape_table_name, lsn_from, state_last_lsn)
                     )
 
@@ -370,7 +371,8 @@ def sync_table(mssql_conn, config, catalog_entry, state, columns, stream_version
                                         when 1 then sys.fn_cdc_map_lsn_to_time(__$start_lsn)
                                         else null
                                         end _sdc_deleted_at
-                                    , sys.fn_cdc_map_lsn_to_time(__$start_lsn) _sdc_lsn_commit_timestamp
+                                    , sys.fn_cdc_map_lsn_to_time(__$start_lsn)
+                                        _sdc_lsn_commit_timestamp
                                     , case __$operation
                                         when 1 then sys.fn_cdc_map_lsn_to_time(__$start_lsn)
                                         else null
@@ -401,9 +403,10 @@ def sync_table(mssql_conn, config, catalog_entry, state, columns, stream_version
                 )
 
             else:
-                # Store the current database lsn number, need to store the latest lsn checkpoint because the
-                # CDC logs expire after a point in time. Therefore if there are no records read, then refresh
-                # the max lsn_to to the latest LSN in the database.
+                # Store the current database lsn number, need to store the latest lsn
+                # checkpoint because the CDC logs expire after a point in time.
+                # Therefore if there are no records read, then refresh the max lsn_to
+                # to the latest LSN in the database.
                 lsn_to = str(get_to_lsn(mssql_conn)[0].hex())
 
             state = singer.write_bookmark(state, catalog_entry.tap_stream_id, "lsn", lsn_to)
