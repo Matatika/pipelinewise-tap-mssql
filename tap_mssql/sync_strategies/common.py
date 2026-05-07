@@ -78,12 +78,12 @@ def get_key_properties(catalog_entry):
         key_properties = stream_metadata.get("table-key-properties", [])
 
     return key_properties
-  
-  
+
+
 def prepare_columns_sql(catalog_entry, c):
-    """
-    Places double quotes around the columns to be selected and does any required
-    sql conversion of data to strings.
+    """Place double quotes around columns to be selected.
+
+    Does any required SQL conversion of data to strings.
 
     Args:
         catalog_entry: required - The full catalog including the schema definition
@@ -104,27 +104,24 @@ def prepare_columns_sql(catalog_entry, c):
     - DATETIMEOFFSET = Will convert to UTC as Singer Recommendation.
 
     """
-
     if "`" in c:
-        raise Exception(
-            "Can't escape identifier {} because it contains a double quote".format(c)
-        )
+        raise Exception("Can't escape identifier {} because it contains a double quote".format(c))
     column_name = """ "{}" """.format(c)
     schema_property = catalog_entry.schema.properties[c]
     sql_data_type = ""
     # additionalProperties is used with singer.decimal to contain scale/precision
     # in those cases, there will not be an sql_data_type value in the schema
     if schema_property.additionalProperties:
-        sql_data_type = schema_property.additionalProperties.get('sql_data_type',"")
+        sql_data_type = schema_property.additionalProperties.get("sql_data_type", "")
 
     # Format the field as a sring in SQL Server to avoid rounding by the PYMSSQL driver
-    if 'string' in schema_property.type and schema_property.format == 'date-time':
-        if sql_data_type == 'datetime2':
+    if "string" in schema_property.type and schema_property.format == "date-time":
+        if sql_data_type == "datetime2":
             return f"""case when {column_name} is not null then
                       CONVERT(VARCHAR,{column_name},121)
                     else null end
                     """
-        elif sql_data_type == 'datetimeoffset':
+        elif sql_data_type == "datetimeoffset":
             return f"""case when {column_name} is not null then
                       CONVERT(VARCHAR,{column_name},127)
                     else null end
@@ -197,7 +194,7 @@ def row_to_singer_record(catalog_entry, version, row, columns, time_extracted, c
             row_to_persist += (boolean_representation,)
         elif isinstance(elem, uuid.UUID):
             row_to_persist += (str(elem),)
-        elif property_format == 'singer.decimal':
+        elif property_format == "singer.decimal":
             if elem is None:
                 row_to_persist += (elem,)
             else:
@@ -237,7 +234,7 @@ def sync_query(cursor, catalog_entry, state, select_sql, columns, stream_version
     with metrics.record_counter(None) as counter:
         counter.tags["database"] = database_name
         counter.tags["table"] = catalog_entry.table
-        
+
         for row in ResultIterator(cursor, ARRAYSIZE):
             counter.increment()
             rows_saved += 1

@@ -1,36 +1,48 @@
 ---
 name: Build test
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  FORCE_COLOR: "1"
 
 jobs:
   build:
     name: Main
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+         - "3.9"
+         - "3.10"
+         - "3.11"
+         - "3.12"
 
     steps:
       - name: Checkout branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Set up Python and test
-        uses: actions/setup-python@v4
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          python-version: 3.9.13
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
 
-      - name: Install Poetry
-        run: pip install poetry==1.4.2
-
-      - name: Cache Poetry virtualenv
-        uses: actions/cache@v3
-        id: cache
-        with:
-          path: ~/.virtualenvs
-          key: poetry-$
-          restore-keys: |
-            poetry-$
-      - name: Install Python dependencies
-        run: poetry install
-        if: steps.cache.outputs.cache-hit != 'true'
+      - name: Install dependencies
+        run: uv sync
 
       - name: Tests
-        run: poetry run tox -e py
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+        run: uv run tox -e $PYTHON_VERSION
+
+      - name: Mypy
+        run: uv run tox -e mypy

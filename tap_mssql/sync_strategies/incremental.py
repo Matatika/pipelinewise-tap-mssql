@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 # pylint: disable=duplicate-code
 
-import pendulum
-import singer
+import sys
 from datetime import datetime
+
+import singer
 from singer import metadata
+
+if sys.version_info < (3, 11):
+    from backports.datetime_fromisoformat import MonkeyPatch
+
+    MonkeyPatch.patch_fromisoformat()
 
 import tap_mssql.sync_strategies.common as common
 from tap_mssql.connection import MSSQLConnection, connect_with_backoff
@@ -54,22 +60,21 @@ def sync_table(mssql_conn, config, catalog_entry, state, columns):
 
             if replication_key_value is not None:
                 if catalog_entry.schema.properties[replication_key_metadata].format == "date-time":
-                    replication_key_value = datetime.fromtimestamp(
-                        pendulum.parse(replication_key_value).timestamp()
-                    )
+                    replication_key_value = datetime.fromisoformat(replication_key_value)
                 # Handle timestamp incremental (timestamp)
-                if catalog_entry.schema.properties[replication_key_metadata].format == 'rowversion':
-                    select_sql += """ WHERE CAST("{}" AS BIGINT) >= 
+                if catalog_entry.schema.properties[replication_key_metadata].format == "rowversion":
+                    select_sql += """ WHERE CAST("{}" AS BIGINT) >=
                     convert(bigint, convert (varbinary(8), '0x{}', 1))
                     ORDER BY "{}" ASC""".format(
                         replication_key_metadata, replication_key_value, replication_key_metadata
                     )
-                    
-                else:
-                    select_sql += ' WHERE "{}" >= %(replication_key_value)s ORDER BY "{}" ASC'.format(
-                        replication_key_metadata, replication_key_metadata
-                    )
 
+                else:
+                    select_sql += (
+                        ' WHERE "{}" >= %(replication_key_value)s ORDER BY "{}" ASC'.format(
+                            replication_key_metadata, replication_key_metadata
+                        )
+                    )
 
                 params["replication_key_value"] = replication_key_value
             elif replication_key_metadata is not None:
