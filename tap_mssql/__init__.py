@@ -728,6 +728,10 @@ def sync_non_cdc_streams(mssql_conn, non_cdc_catalog, config, state):
                 elif replication_method == "LOG_BASED":
                     LOGGER.info(f"syncing {catalog_entry.table} cdc tables")
                     do_sync_historical_log(mssql_conn, config, catalog_entry, state, columns)
+                else:
+                    raise Exception(
+                        "only INCREMENTAL, LOG_BASED and FULL_TABLE replication methods are supported"
+                    )
             except Exception as e:
                 if hasattr(e, "args") and e.args and isinstance(e.args[0], int) and e.args[0] == 208:
                     LOGGER.warning(
@@ -737,10 +741,6 @@ def sync_non_cdc_streams(mssql_conn, non_cdc_catalog, config, state):
                     )
                 else:
                     raise
-            else:
-                raise Exception(
-                    "only INCREMENTAL, LOG_BASED and FULL_TABLE replication methods are supported"
-                )
 
     state = singer.set_currently_syncing(state, None)
     singer.write_message(singer.StateMessage(value=copy.deepcopy(state)))
