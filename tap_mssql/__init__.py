@@ -718,15 +718,25 @@ def sync_non_cdc_streams(mssql_conn, non_cdc_catalog, config, state):
             timer.tags["database"] = database_name
             timer.tags["table"] = catalog_entry.table
 
-            if replication_method == "INCREMENTAL":
-                LOGGER.info(f"syncing {catalog_entry.table} incrementally")
-                do_sync_incremental(mssql_conn, config, catalog_entry, state, columns)
-            elif replication_method == "FULL_TABLE":
-                LOGGER.info(f"syncing {catalog_entry.table} full table")
-                do_sync_full_table(mssql_conn, config, catalog_entry, state, columns)
-            elif replication_method == "LOG_BASED":
-                LOGGER.info(f"syncing {catalog_entry.table} cdc tables")
-                do_sync_historical_log(mssql_conn, config, catalog_entry, state, columns)
+            try:
+                if replication_method == "INCREMENTAL":
+                    LOGGER.info(f"syncing {catalog_entry.table} incrementally")
+                    do_sync_incremental(mssql_conn, config, catalog_entry, state, columns)
+                elif replication_method == "FULL_TABLE":
+                    LOGGER.info(f"syncing {catalog_entry.table} full table")
+                    do_sync_full_table(mssql_conn, config, catalog_entry, state, columns)
+                elif replication_method == "LOG_BASED":
+                    LOGGER.info(f"syncing {catalog_entry.table} cdc tables")
+                    do_sync_historical_log(mssql_conn, config, catalog_entry, state, columns)
+            except Exception as e:
+                if hasattr(e, "args") and e.args and isinstance(e.args[0], int) and e.args[0] == 208:
+                    LOGGER.warning(
+                        "Skipping table %s: object does not exist in the database (%s)",
+                        catalog_entry.table,
+                        e,
+                    )
+                else:
+                    raise
             else:
                 raise Exception(
                     "only INCREMENTAL, LOG_BASED and FULL_TABLE replication methods are supported"
