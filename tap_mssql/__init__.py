@@ -438,6 +438,14 @@ def resolve_catalog(discovered_catalog, streams_to_sync):
         discovered_table = discovered_catalog.get_stream(catalog_entry.tap_stream_id)
         database_name = common.get_database_name(catalog_entry)
 
+        LOGGER.info(
+            "resolve_catalog: tap_stream_id=%s table=%s database=%s found_in_discovery=%s",
+            catalog_entry.tap_stream_id,
+            catalog_entry.table,
+            database_name,
+            discovered_table is not None,
+        )
+
         if not discovered_table:
             LOGGER.warning(
                 "Database %s table %s was selected but does not exist",
