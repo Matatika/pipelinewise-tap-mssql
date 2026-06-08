@@ -624,7 +624,7 @@ def do_sync_historical_log(mssql_conn, config, catalog_entry, state, columns):
     stream_version = common.get_stream_version(catalog_entry.tap_stream_id, state)
 
     # full_table.sync_table(mssql_conn, config, catalog_entry, state, columns, stream_version)
-    log_based.sync_historic_table(mssql_conn, config, catalog_entry, state, columns, stream_version)
+    state = log_based.sync_historic_table(mssql_conn, config, catalog_entry, state, columns, stream_version)
 
     # Prefer initial_full_table_complete going forward
     singer.clear_bookmark(state, catalog_entry.tap_stream_id, "version")
