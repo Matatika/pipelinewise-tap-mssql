@@ -260,8 +260,6 @@ def sync_historic_table(mssql_conn, config, catalog_entry, state, columns, strea
 
     singer.write_message(activate_version_message)
 
-    return state
-
 
 def sync_table(mssql_conn, config, catalog_entry, state, columns, stream_version):
     mssql_conn = MSSQLConnection(config)
