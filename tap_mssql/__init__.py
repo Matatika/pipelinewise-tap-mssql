@@ -76,6 +76,8 @@ TIME_TYPES = set(["time"])
 
 VARIANT_TYPES = set(["json"])
 
+BINARY_TYPES = set(["binary", "varbinary", "image"])
+
 
 def default_date_format():
     return False
@@ -173,6 +175,9 @@ def schema_for_column(c, config):
 
     elif data_type in VARIANT_TYPES:
         result.type = ["null", "object"]
+
+    elif data_type in BINARY_TYPES:
+        result.type = ["null", "string"]
 
     else:
         result = Schema(
@@ -431,6 +436,14 @@ def resolve_catalog(discovered_catalog, streams_to_sync):
 
         discovered_table = discovered_catalog.get_stream(catalog_entry.tap_stream_id)
         database_name = common.get_database_name(catalog_entry)
+
+        LOGGER.info(
+            "resolve_catalog: tap_stream_id=%s table=%s database=%s found_in_discovery=%s",
+            catalog_entry.tap_stream_id,
+            catalog_entry.table,
+            database_name,
+            discovered_table is not None,
+        )
 
         if not discovered_table:
             LOGGER.warning(
@@ -704,19 +717,29 @@ def sync_non_cdc_streams(mssql_conn, non_cdc_catalog, config, state):
             timer.tags["database"] = database_name
             timer.tags["table"] = catalog_entry.table
 
-            if replication_method == "INCREMENTAL":
-                LOGGER.info(f"syncing {catalog_entry.table} incrementally")
-                do_sync_incremental(mssql_conn, config, catalog_entry, state, columns)
-            elif replication_method == "FULL_TABLE":
-                LOGGER.info(f"syncing {catalog_entry.table} full table")
-                do_sync_full_table(mssql_conn, config, catalog_entry, state, columns)
-            elif replication_method == "LOG_BASED":
-                LOGGER.info(f"syncing {catalog_entry.table} cdc tables")
-                do_sync_historical_log(mssql_conn, config, catalog_entry, state, columns)
-            else:
-                raise Exception(
-                    "only INCREMENTAL, LOG_BASED and FULL_TABLE replication methods are supported"
-                )
+            try:
+                if replication_method == "INCREMENTAL":
+                    LOGGER.info(f"syncing {catalog_entry.table} incrementally")
+                    do_sync_incremental(mssql_conn, config, catalog_entry, state, columns)
+                elif replication_method == "FULL_TABLE":
+                    LOGGER.info(f"syncing {catalog_entry.table} full table")
+                    do_sync_full_table(mssql_conn, config, catalog_entry, state, columns)
+                elif replication_method == "LOG_BASED":
+                    LOGGER.info(f"syncing {catalog_entry.table} cdc tables")
+                    do_sync_historical_log(mssql_conn, config, catalog_entry, state, columns)
+                else:
+                    raise Exception(
+                        "only INCREMENTAL, LOG_BASED and FULL_TABLE replication methods are supported"
+                    )
+            except Exception as e:
+                if hasattr(e, "args") and e.args and isinstance(e.args[0], int) and e.args[0] == 208:
+                    LOGGER.warning(
+                        "Skipping table %s: object does not exist in the database (%s)",
+                        catalog_entry.table,
+                        e,
+                    )
+                else:
+                    raise
 
     state = singer.set_currently_syncing(state, None)
     singer.write_message(singer.StateMessage(value=copy.deepcopy(state)))
