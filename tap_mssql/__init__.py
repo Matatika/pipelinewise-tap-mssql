@@ -178,7 +178,6 @@ def schema_for_column(c, config):
 
     elif data_type in BINARY_TYPES:
         result.type = ["null", "string"]
-        result.format = "binary"
 
     else:
         result = Schema(
