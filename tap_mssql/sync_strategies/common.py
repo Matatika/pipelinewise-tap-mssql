@@ -174,7 +174,7 @@ def row_to_singer_record(catalog_entry, version, row, columns, time_extracted, c
             row_to_persist += (timedelta_from_epoch.isoformat() + "+00:00",)
 
         elif isinstance(elem, bytes):
-            if "string" in (property_type if isinstance(property_type, list) else [property_type]):
+            if "string" in property_type:
                 row_to_persist += (str(elem.hex()),)
             elif elem == b"\x00":
                 row_to_persist += (False,)
