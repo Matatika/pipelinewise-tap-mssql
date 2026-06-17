@@ -415,5 +415,3 @@ def sync_table(mssql_conn, config, catalog_entry, state, columns, stream_version
     # clear max lsn value and last lsn fetched upon successful sync
     singer.clear_bookmark(state, catalog_entry.tap_stream_id, "max_lsn_values")
     singer.clear_bookmark(state, catalog_entry.tap_stream_id, "last_lsn_fetched")
-
-    singer.write_message(activate_version_message)
