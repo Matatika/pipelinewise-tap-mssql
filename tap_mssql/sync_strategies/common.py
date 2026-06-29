@@ -174,13 +174,12 @@ def row_to_singer_record(catalog_entry, version, row, columns, time_extracted, c
             row_to_persist += (timedelta_from_epoch.isoformat() + "+00:00",)
 
         elif isinstance(elem, bytes):
-            # for BIT value, treat 0 as False, 1 as True and anything else as hex
-            if elem == b"\x00":
-                boolean_representation = False
-                row_to_persist += (boolean_representation,)
+            if "string" in property_type:
+                row_to_persist += (str(elem.hex()),)
+            elif elem == b"\x00":
+                row_to_persist += (False,)
             elif elem == b"\x01":
-                boolean_representation = True
-                row_to_persist += (boolean_representation,)
+                row_to_persist += (True,)
             else:
                 row_to_persist += (str(elem.hex()),)
 

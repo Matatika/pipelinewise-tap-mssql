@@ -109,6 +109,18 @@ def get_to_lsn(connection):
     return row
 
 
+def get_cdc_captured_columns(connection, capture_instance):
+    cur = connection.cursor()
+    cur.execute(
+        """SELECT c.column_name
+           FROM cdc.change_tables ct
+           JOIN cdc.captured_columns c ON c.object_id = ct.object_id
+           WHERE ct.capture_instance = %s""",
+        (capture_instance,),
+    )
+    return {row[0] for row in cur.fetchall()}
+
+
 def add_synthetic_keys_to_schema(catalog_entry):
     catalog_entry.schema.properties["_sdc_operation_type"] = Schema(
         description="Source operation I=Insert, D=Delete, U=Update",
@@ -267,6 +279,21 @@ def sync_table(mssql_conn, config, catalog_entry, state, columns, stream_version
         generate_bookmark_keys(catalog_entry), catalog_entry.tap_stream_id, state
     )
 
+    cdc_table = common.get_database_name(catalog_entry) + "_" + catalog_entry.table
+    cdc_captured = get_cdc_captured_columns(mssql_conn, cdc_table)
+    # Columns added to the source table after cdc is enabled are not tracked.
+    # We are skipping them here as the incremental run tries to query from the cdc tables where these don't exist
+    
+    if cdc_captured:
+        skipped = set(columns) - cdc_captured
+        if skipped:
+            LOGGER.warning(
+                "Skipping columns not tracked in CDC capture instance %s: %s",
+                cdc_table,
+                skipped,
+            )
+        columns = [c for c in columns if c in cdc_captured]
+
     # Add additional keys to the columns
     extended_columns = columns + [
         "_sdc_operation_type",
@@ -301,9 +328,7 @@ def sync_table(mssql_conn, config, catalog_entry, state, columns, stream_version
             state_last_lsn = singer.get_bookmark(state, catalog_entry.tap_stream_id, "lsn")
 
             escaped_columns = map(lambda c: common.prepare_columns_sql(catalog_entry, c), columns)
-            table_name = catalog_entry.table
             schema_name = common.get_database_name(catalog_entry)
-            cdc_table = schema_name + "_" + table_name
             escape_table_name = common.escape(catalog_entry.table)
             escaped_schema_name = common.escape(schema_name)
             escaped_cdc_function = common.escape("fn_cdc_get_all_changes_" + cdc_table)
@@ -415,5 +440,3 @@ def sync_table(mssql_conn, config, catalog_entry, state, columns, stream_version
     # clear max lsn value and last lsn fetched upon successful sync
     singer.clear_bookmark(state, catalog_entry.tap_stream_id, "max_lsn_values")
     singer.clear_bookmark(state, catalog_entry.tap_stream_id, "last_lsn_fetched")
-
-    singer.write_message(activate_version_message)

@@ -203,9 +203,9 @@ class TestTypeMapping(unittest.TestCase):
     #     )
 
     def test_float(self):
-        # self.assertEqual(
-        #     self.schema.properties["c_float"], Schema(["null", "number"], inclusion="available")
-        # )
+        self.assertEqual(
+            self.schema.properties["c_float"], Schema(["null", "number"], inclusion="available")
+        )
         self.assertEqual(
             self.get_metadata_for_column("c_float"),
             {"selected-by-default": True, "sql-datatype": "float"},
