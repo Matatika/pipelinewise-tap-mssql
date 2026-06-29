@@ -126,7 +126,6 @@ def schema_for_column(c, config):
             result.format = "singer.decimal"
         else:
             result.type = ["null", "number"]
-            result.multipleOf = 10 ** (0 - (c.numeric_scale or 17))
 
     elif data_type in DECIMAL_TYPES:
         if use_singer_decimal:
