@@ -590,7 +590,6 @@ To run the **init**.py python program in debug mode, you need to do the followin
 Add the following lines to the end of the **init**.py in the tap_mssql directory.
 
 ```python
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()  # pylint: disable=no-value-for-parameter
 ```

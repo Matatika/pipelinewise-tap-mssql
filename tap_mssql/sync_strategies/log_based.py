@@ -282,8 +282,9 @@ def sync_table(mssql_conn, config, catalog_entry, state, columns, stream_version
     cdc_table = common.get_database_name(catalog_entry) + "_" + catalog_entry.table
     cdc_captured = get_cdc_captured_columns(mssql_conn, cdc_table)
     # Columns added to the source table after cdc is enabled are not tracked.
-    # We are skipping them here as the incremental run tries to query from the cdc tables where these don't exist
-    
+    # We are skipping them here as the incremental run tries to query from the cdc tables
+    # where these don't exist
+
     if cdc_captured:
         skipped = set(columns) - cdc_captured
         if skipped:
