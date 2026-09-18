@@ -728,10 +728,15 @@ def sync_non_cdc_streams(mssql_conn, non_cdc_catalog, config, state):
                     do_sync_historical_log(mssql_conn, config, catalog_entry, state, columns)
                 else:
                     raise Exception(
-                        "only INCREMENTAL, LOG_BASED and FULL_TABLE replication methods are supported"
+                        "only INCREMENTAL, LOG_BASED and FULL_TABLE replication methods are supported"  # noqa: E501
                     )
             except Exception as e:
-                if hasattr(e, "args") and e.args and isinstance(e.args[0], int) and e.args[0] == 208:
+                if (
+                    hasattr(e, "args")
+                    and e.args
+                    and isinstance(e.args[0], int)
+                    and e.args[0] == 208
+                ):
                     LOGGER.warning(
                         "Skipping table %s: object does not exist in the database (%s)",
                         catalog_entry.table,
